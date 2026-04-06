@@ -69,7 +69,7 @@ export default function Cadastro({onNavigate}){
             <div className="relative">
               <input
                 id="senha-cad"
-                type={mostrarSenha ? 'text' : 'password'}
+                type={mostrarsenha ? 'text' : 'password'}
                 placeholder="Minimo 6 caracteres"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
@@ -80,7 +80,7 @@ export default function Cadastro({onNavigate}){
                 onClick={() => setMostreSenha(!mostrarsenha)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                 aria-label={mostrarsenha ? 'Esconder senha' : 'Mostrar senha'}>
-                {mostrarSenha ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {mostrarsenha ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -90,7 +90,7 @@ export default function Cadastro({onNavigate}){
               id="confirmar"
               type="password"
               placeholder="Repita a senha"
-              value={confirmarSenha}
+              value={confirmarsenha}
               onChange={(e) => setConfirmSenha(e.target.value)}
               className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-base placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
