@@ -11,7 +11,7 @@ exports.createProduct = async (req, res)=>{
 
 exports.getProducts = async (req, res) => {
     try{
-        const products = await Product.find()
+        const products = await Product.find({active: true})
         res.json(products)
     }catch (error){
         res.status(500).json({error: error.message})
@@ -32,15 +32,13 @@ exports.getProductByCode = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
   try {
-    const { id } = req.params
-
-    const updated = await Products.findByIdAndUpdate(
-      id,
+    const product = await Products.findByIdAndUpdate(
+      req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      { new: true}
     )
 
-    if (!updated) {
+    if (!product) {
       return res.status(404).json({ message: "Produto não encontrado" })
     }
 
@@ -54,7 +52,7 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const product = await Product.findOneAndUpdate(
-      { code: req.params.code },
+      req.params.id,
       { active: false },
       { new: true }
     )
