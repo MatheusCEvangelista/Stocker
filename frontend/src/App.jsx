@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import api from "./services/api"
 import { LayoutDashboard, Package, ShoppingCart, LogOut } from 'lucide-react'
 
@@ -12,69 +12,62 @@ import VendaLista from "./screens/VendaLista"
 import StockMovementForm from "./screens/StockMovementForm"
 
 function App() {
-
   const [tela, setTela] = useState('login')
-  const [products, setProducts] = useState([]) 
+  const [products, setProducts] = useState([])
   const [vendas, setVendas] = useState([])
   const [produtoEditandoId, setProdutoEditandoId] = useState(null)
 
-  useEffect(() => {
-    async function loadProducts() {
+  // CORRIGIDO: extraído para função reutilizável para poder chamar após salvar/editar
+  const loadProducts = useCallback(async () => {
     try {
       const response = await api.get("/products")
-      console.log("RESPOSTA PRODUCTS:", response.data)
-
       const produtosFormatados = response.data.map((p) => ({
         id: p._id,
         nome: p.groupname + " - " + p.flavor,
         codigo: p.code,
-        preco: p.sellprice, 
-        custo: p.costPrice,      
-        categoria: p.groupname
+        preco: p.sellprice,
+        custo: p.costPrice,
+        categoria: p.groupname,
+        sabor: p.flavor,
       }))
-
-setProducts(produtosFormatados)
+      setProducts(produtosFormatados)
     } catch (error) {
       console.error("Erro ao carregar produtos:", error)
     }
-  }
-  loadProducts()
-}, [])
+  }, [])
 
-useEffect(() => {
-  if (tela !== "vendas") return
+  useEffect(() => {
+    loadProducts()
+  }, [loadProducts])
 
-  
-   async function loadSales() {
-  try {
-    const response = await api.get("/sales")
-    console.log(response.data)
-    const vendasFormatadas = response.data.map((v) => ({
-      id: v._id,
-      data: new Date(v.saleDate).toLocaleDateString("pt-BR"),
-      total: v.totalFinal,
-      status: v.status,
-      paymentType: v.paymentType,
-      itens: [
-        {
-          nome:  `${v.productId?.groupname} - ${v.productId?.flavor|| ""}` ,
-          quantidade: v.quantity,
-          preco: v.subtotal / v.quantity
-        }
-      ]
-    }))
+  useEffect(() => {
+    if (tela !== "vendas") return
 
-    setVendas(vendasFormatadas)
+    async function loadSales() {
+      try {
+        const response = await api.get("/sales")
+        const vendasFormatadas = response.data.map((v) => ({
+          id: v._id,
+          data: new Date(v.saleDate).toLocaleDateString("pt-BR"),
+          total: v.totalFinal,
+          status: v.status,
+          paymentType: v.paymentType,
+          itens: [
+            {
+              nome: `${v.productId?.groupname ?? "?"} - ${v.productId?.flavor ?? ""}`,
+              quantidade: v.quantity,
+              preco: v.subtotal / v.quantity,
+            },
+          ],
+        }))
+        setVendas(vendasFormatadas)
+      } catch (error) {
+        console.error("Erro ao carregar vendas:", error)
+      }
+    }
 
-  } catch (error) {
-    console.error(error)
-  }
-}
-  
-
-  loadSales()
-}, [tela])
-  
+    loadSales()
+  }, [tela])
 
   function navegar(destino, extra) {
     if (destino === 'produto-form') {
@@ -83,26 +76,32 @@ useEffect(() => {
     setTela(destino)
   }
 
-  function salvarProduto(produto) {
-    setProducts((prev) => {
-      const existe = prev.find((p) => p.id === produto.id)
-      if (existe) {
-        return prev.map((p) => (p.id === produto.id ? produto : p))
-      }
-      return [...prev, produto]
-    })
+  // CORRIGIDO: após salvar produto, recarrega lista do backend para garantir sincronia
+  async function salvarProduto() {
+    await loadProducts()
+    navegar('produtos')
   }
 
-  function excluirProduto(id) {
-    setProducts((prev) => prev.filter((p) => p.id !== id))
+  async function excluirProduto(id) {
+    try {
+      await api.delete(`/products/${id}`)
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+    } catch (error) {
+      console.error("Erro ao excluir produto:", error)
+    }
   }
 
   function salvarVenda(venda) {
     setVendas((prev) => [...prev, venda])
   }
 
-  function excluirVenda(id) {
-    setVendas((prev) => prev.filter((v) => v.id !== id))
+  async function excluirVenda(id) {
+    try {
+      await api.delete(`/sales/${id}`)
+      setVendas((prev) => prev.filter((v) => v.id !== id))
+    } catch (error) {
+      console.error("Erro ao excluir venda:", error)
+    }
   }
 
   const produtoEditando = produtoEditandoId !== null
@@ -110,7 +109,7 @@ useEffect(() => {
     : null
 
   const menuItems = [
-    { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
     { id: 'produtos', label: 'Produtos', icon: Package },
     { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
   ]
@@ -134,7 +133,7 @@ useEffect(() => {
         return <VendaLista onNavigate={navegar} vendas={vendas} onExcluir={excluirVenda} />
       case 'venda-form':
         return <VendaForm onNavigate={navegar} produtos={products} onSalvar={salvarVenda} />
-        case 'estoque':
+      case 'estoque':
         return <StockMovementForm onNavigate={navegar} produtos={products} />
       default:
         return <Dashboard onNavigate={navegar} produtos={products} vendas={vendas} />
@@ -150,6 +149,7 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Sidebar desktop */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-56 bg-slate-900 flex-col z-40">
         <div className="p-5 flex items-center gap-3">
           <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -189,6 +189,7 @@ useEffect(() => {
         </div>
       </aside>
 
+      {/* Header mobile */}
       <header className="lg:hidden sticky top-0 z-30 bg-white border-b border-slate-200 flex items-center justify-between px-4 h-14">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -209,6 +210,7 @@ useEffect(() => {
         {renderTela()}
       </main>
 
+      {/* Bottom nav mobile */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex items-center justify-around h-16">
         {menuItems.map((item) => {
           const ativa = abaAtiva() === item.id

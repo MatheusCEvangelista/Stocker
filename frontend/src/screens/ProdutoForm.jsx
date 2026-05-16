@@ -1,59 +1,67 @@
 import { useState } from 'react'
-import { ArrowLeft, Save, Upload } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import api from '../services/api'
 
 export default function ProdutoForm({ onNavigate, onSalvar, produtoEditando }) {
-
-const [code, setCode] = useState(produtoEditando?.codigo || '')
-const [groupname, setGroupname] = useState(produtoEditando?.categoria || '')
-const [flavor, setFlavor] = useState(produtoEditando?.sabor || '')
-const [costPrice, setCostPrice] = useState(produtoEditando?.custo?.toString() || '')
-const [sellprice, setSellPrice] = useState(produtoEditando?.preco?.toString() || '')
-
+  const [code, setCode] = useState(produtoEditando?.codigo || '')
+  const [groupname, setGroupname] = useState(produtoEditando?.categoria || '')
+  const [flavor, setFlavor] = useState(produtoEditando?.sabor || '')
+  const [costPrice, setCostPrice] = useState(produtoEditando?.custo?.toString() || '')
+  const [sellprice, setSellPrice] = useState(produtoEditando?.preco?.toString() || '')
   const [erro, setErro] = useState('')
-  const [dragAtivo, setDragAtivo] = useState(false)
 
- async function handleSubmit(e) {
-  e.preventDefault()
+  async function handleSubmit(e) {
+    e.preventDefault()
 
-  if (!code || !groupname || !flavor || !costPrice || !sellprice) {
-    setErro('Preencha todos os campos.')
-    return
-  }
+    if (!code || !groupname || !flavor || !costPrice || !sellprice) {
+      setErro('Preencha todos os campos.')
+      return
+    }
+    if (isNaN(Number(costPrice)) || Number(costPrice) < 0) {
+      setErro('Informe um preço de custo válido.')
+      return
+    }
+    if (isNaN(Number(sellprice)) || Number(sellprice) <= 0) {
+      setErro('Informe um preço de venda válido.')
+      return
+    }
 
-  if (isNaN(Number(sellprice)) || Number(sellprice) <= 0) {
-    setErro('Informe um preco de venda valido.')
-    return
-  }
-
-  try {
-    const response = await api.post("/products", {
+    const payload = {
       code,
       groupname,
       flavor,
       costPrice: Number(costPrice),
       sellprice: Number(sellprice)
-    })
+    }
 
-    const produtoSalvo = response.data
+    try {
+      let produtoSalvo
 
-    onSalvar({
-      id: produtoSalvo._id,
-      nome: `${produtoSalvo.groupname} - ${produtoSalvo.flavor}`,
-      codigo: produtoSalvo.code,
-      preco: produtoSalvo.sellprice,
-      custo: produtoSalvo.costPrice,
-      categoria: produtoSalvo.groupname,
-      sabor: produtoSalvo.flavor
-    })
+      // CORRIGIDO: modo edição agora chama PUT /:id; antes sempre chamava POST
+      if (produtoEditando) {
+        const response = await api.put(`/products/${produtoEditando.id}`, payload)
+        produtoSalvo = response.data
+      } else {
+        const response = await api.post('/products', payload)
+        produtoSalvo = response.data
+      }
 
-    onNavigate('produtos')
+      onSalvar({
+        id: produtoSalvo._id,
+        nome: `${produtoSalvo.groupname} - ${produtoSalvo.flavor}`,
+        codigo: produtoSalvo.code,
+        preco: produtoSalvo.sellprice,
+        custo: produtoSalvo.costPrice,
+        categoria: produtoSalvo.groupname,
+        sabor: produtoSalvo.flavor
+      })
 
-  } catch (error) {
-    console.error("ERRO COMPLETO:", error.response?.data)
-  setErro(error.response?.data?.message || "Erro ao salvar produto.")
+      onNavigate('produtos')
+    } catch (error) {
+      console.error('Erro ao salvar produto:', error.response?.data)
+      setErro(error.response?.data?.message || 'Erro ao salvar produto.')
+    }
   }
-}
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,12 +91,12 @@ const [sellprice, setSellPrice] = useState(produtoEditando?.preco?.toString() ||
         )}
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-slate-700">Codigo</label>
+          <label className="text-sm font-medium text-slate-700">Código</label>
           <input
             type="text"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50"
+            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
@@ -98,7 +106,7 @@ const [sellprice, setSellPrice] = useState(produtoEditando?.preco?.toString() ||
             type="text"
             value={groupname}
             onChange={(e) => setGroupname(e.target.value)}
-            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50"
+            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
@@ -108,29 +116,31 @@ const [sellprice, setSellPrice] = useState(produtoEditando?.preco?.toString() ||
             type="text"
             value={flavor}
             onChange={(e) => setFlavor(e.target.value)}
-            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50"
+            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-slate-700">Preco de Custo</label>
+          <label className="text-sm font-medium text-slate-700">Preço de Custo</label>
           <input
             type="number"
             step="0.01"
+            min="0"
             value={costPrice}
             onChange={(e) => setCostPrice(e.target.value)}
-            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50"
+            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-slate-700">Preco de Venda</label>
+          <label className="text-sm font-medium text-slate-700">Preço de Venda</label>
           <input
             type="number"
             step="0.01"
+            min="0.01"
             value={sellprice}
             onChange={(e) => setSellPrice(e.target.value)}
-            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50"
+            className="h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
 
@@ -139,7 +149,7 @@ const [sellprice, setSellPrice] = useState(produtoEditando?.preco?.toString() ||
           className="h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors mt-2 cursor-pointer"
         >
           <Save className="w-5 h-5" />
-          {produtoEditando ? 'Salvar Alteracoes' : 'Cadastrar Produto'}
+          {produtoEditando ? 'Salvar Alterações' : 'Cadastrar Produto'}
         </button>
       </form>
     </div>
