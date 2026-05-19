@@ -95,6 +95,22 @@ function App() {
     setVendas((prev) => [...prev, venda])
   }
 
+  function editarVenda(dadosAtualizados) {
+    setVendas((prev) =>
+      prev.map((v) => {
+        if (v.id !== dadosAtualizados._id) return v
+        return {
+          ...v,
+          total: dadosAtualizados.totalFinal,
+          status: dadosAtualizados.status,
+          paymentType: dadosAtualizados.paymentType,
+          adjustmentValue: dadosAtualizados.adjustmentValue,
+          dueDate: dadosAtualizados.dueDate,
+        }
+      })
+    )
+  }
+
   async function excluirVenda(id) {
     try {
       await api.delete(`/sales/${id}`)
@@ -130,7 +146,7 @@ function App() {
       case 'produto-form':
         return <ProdutoForm onNavigate={navegar} onSalvar={salvarProduto} produtoEditando={produtoEditando} />
       case 'vendas':
-        return <VendaLista onNavigate={navegar} vendas={vendas} onExcluir={excluirVenda} />
+        return <VendaLista onNavigate={navegar} vendas={vendas} onExcluir={excluirVenda} onEditar={editarVenda} />
       case 'venda-form':
         return <VendaForm onNavigate={navegar} produtos={products} onSalvar={salvarVenda} />
       case 'estoque':

@@ -4,7 +4,6 @@ const StockMovement = require("../models/StockMovement")
 
 exports.createSale = async (req, res) => {
   try {
-
     const {
       productId,
       quantity,
@@ -12,37 +11,29 @@ exports.createSale = async (req, res) => {
       adjustmentValue,
       paymentType,
       dailyInterest,
-      dueDate
+      dueDate,
     } = req.body
 
     const product = await Product.findById(productId)
-
-    if (!product) {
-      return res.status(404).json({ message: "Produto não encontrado" })
-    }
+    if (!product) return res.status(404).json({ message: "Produto não encontrado" })
 
     const subtotal = product.sellprice * quantity
-
     let totalFinal = subtotal
+    // CORRIGIDO: respeita o status enviado pelo frontend; antes sempre forçava PENDENTE para PRAZO
     let status = req.body.status || "PAGO"
 
     if (paymentType === "VISTA") {
-
-      if (adjustmentType === "DESCONTO") {
-        totalFinal = subtotal - adjustmentValue
-      }
-
+      if (adjustmentType === "DESCONTO") totalFinal = subtotal - (adjustmentValue || 0)
       status = "PAGO"
     }
 
     if (paymentType === "PRAZO") {
-      status = "PENDENTE"
+      totalFinal = subtotal + (adjustmentValue || 0)
+      // mantém o status enviado (PAGO / PENDENTE / ATRASO)
     }
 
     const movements = await StockMovement.find({ productId })
-
     const currentStock = movements.reduce((acc, mov) => acc + mov.quantity, 0)
-
     if (currentStock < quantity) {
       return res.status(400).json({ message: "Estoque insuficiente" })
     }
@@ -58,17 +49,12 @@ exports.createSale = async (req, res) => {
       paymentType,
       dailyInterest,
       dueDate,
-      status
+      status,
     })
 
-    await StockMovement.create({
-      productId,
-      quantity: -quantity,
-      type: "Saída"
-    })
+    await StockMovement.create({ productId, quantity: -quantity, type: "Saída" })
 
     res.status(201).json(sale)
-
   } catch (error) {
     res.status(400).json({ error: error.message })
   }
@@ -83,30 +69,32 @@ exports.getSales = async (req, res) => {
   }
 }
 
-exports.updateSale = async (req,res)=>{
- try{
-
-  const sale = await Sale.findByIdAndUpdate(
-   req.params.id,
-   req.body,
-   {new:true}
-  )
-
-  res.json(sale)
-
- }catch(error){
-  res.status(400).json({error:error.message})
- }
+// Permite editar status, dueDate, adjustmentValue, paymentType
+exports.updateSale = async (req, res) => {
+  try {
+    const sale = await Sale.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate("productId")
+    if (!sale) return res.status(404).json({ message: "Venda não encontrada" })
+    res.json(sale)
+  } catch (error) {
+    res.status(400).json({ error: error.message })
+  }
 }
 
-exports.deleteSale = async (req,res)=>{
- try{
+exports.deleteSale = async (req, res) => {
+  try {
+    const sale = await Sale.findById(req.params.id)
+    if (!sale) return res.status(404).json({ message: "Venda não encontrada" })
 
-  await Sale.findByIdAndDelete(req.params.id)
+    // Estorna o estoque ao excluir uma venda
+    await StockMovement.create({
+      productId: sale.productId,
+      quantity: sale.quantity,
+      type: "Estorno",
+    })
 
-  res.json({message:"Venda removida"})
-
- }catch(error){
-  res.status(400).json({error:error.message})
- }
+    await Sale.findByIdAndDelete(req.params.id)
+    res.json({ message: "Venda removida" })
+  } catch (error) {
+    res.status(400).json({ error: error.message })
+  }
 }
