@@ -52,6 +52,12 @@ function App() {
           total: v.totalFinal,
           status: v.status,
           paymentType: v.paymentType,
+          // campos necessários para o modal de edição funcionar corretamente
+          adjustmentValue: v.adjustmentValue ?? 0,
+          adjustmentType: v.adjustmentType ?? "DESCONTO",
+          dailyInterest: v.dailyInterest ?? 0,
+          dueDate: v.dueDate ?? null,
+          subtotal: v.subtotal ?? 0,
           itens: [
             {
               nome: `${v.productId?.groupname ?? "?"} - ${v.productId?.flavor ?? ""}`,
@@ -105,6 +111,8 @@ function App() {
           status: dadosAtualizados.status,
           paymentType: dadosAtualizados.paymentType,
           adjustmentValue: dadosAtualizados.adjustmentValue,
+          adjustmentType: dadosAtualizados.adjustmentType,
+          dailyInterest: dadosAtualizados.dailyInterest,
           dueDate: dadosAtualizados.dueDate,
         }
       })

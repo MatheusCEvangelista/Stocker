@@ -24,6 +24,8 @@ exports.createMovement = async (req, res) => {
 exports.getMovements = async (req, res) => {
   try {
     const movements = await StockMovement.find()
+      .populate("productId", "groupname flavor code")
+      .sort({ date: -1 })
     res.json(movements)
   } catch (error) {
     res.status(400).json({ error: error.message })
