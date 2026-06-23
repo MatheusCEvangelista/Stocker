@@ -12,16 +12,19 @@ import VendaLista from "./screens/VendaLista"
 import StockMovementForm from "./screens/StockMovementForm"
 
 function App() {
-  const [tela, setTela] = useState('login')
+  // Inicializa usuário a partir do localStorage (persiste o login entre reloads)
+  const [usuario, setUsuario] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("stocker_user")) } catch { return null }
+  })
+  const [tela, setTela] = useState("dashboard")
   const [products, setProducts] = useState([])
   const [vendas, setVendas] = useState([])
   const [produtoEditandoId, setProdutoEditandoId] = useState(null)
 
-  // CORRIGIDO: extraído para função reutilizável para poder chamar após salvar/editar
   const loadProducts = useCallback(async () => {
     try {
       const response = await api.get("/products")
-      const produtosFormatados = response.data.map((p) => ({
+      setProducts(response.data.map((p) => ({
         id: p._id,
         nome: p.groupname + " - " + p.flavor,
         codigo: p.code,
@@ -29,63 +32,68 @@ function App() {
         custo: p.costPrice,
         categoria: p.groupname,
         sabor: p.flavor,
-      }))
-      setProducts(produtosFormatados)
+      })))
     } catch (error) {
       console.error("Erro ao carregar produtos:", error)
     }
   }, [])
 
+  // Carrega dados assim que o usuário loga
   useEffect(() => {
-    loadProducts()
-  }, [loadProducts])
+    if (usuario) loadProducts()
+  }, [usuario, loadProducts])
 
   useEffect(() => {
-    if (tela !== "vendas") return
-
+    if (!usuario || tela !== "vendas") return
     async function loadSales() {
       try {
         const response = await api.get("/sales")
-        const vendasFormatadas = response.data.map((v) => ({
+        setVendas(response.data.map((v) => ({
           id: v._id,
           data: new Date(v.saleDate).toLocaleDateString("pt-BR"),
           total: v.totalFinal,
           status: v.status,
           paymentType: v.paymentType,
-          // campos necessários para o modal de edição funcionar corretamente
           adjustmentValue: v.adjustmentValue ?? 0,
           adjustmentType: v.adjustmentType ?? "DESCONTO",
           dailyInterest: v.dailyInterest ?? 0,
           dueDate: v.dueDate ?? null,
           subtotal: v.subtotal ?? 0,
-          itens: [
-            {
-              nome: `${v.productId?.groupname ?? "?"} - ${v.productId?.flavor ?? ""}`,
-              quantidade: v.quantity,
-              preco: v.subtotal / v.quantity,
-            },
-          ],
-        }))
-        setVendas(vendasFormatadas)
+          itens: [{
+            nome: `${v.productId?.groupname ?? "?"} - ${v.productId?.flavor ?? ""}`,
+            quantidade: v.quantity,
+            preco: v.subtotal / v.quantity,
+          }],
+        })))
       } catch (error) {
         console.error("Erro ao carregar vendas:", error)
       }
     }
-
     loadSales()
-  }, [tela])
+  }, [tela, usuario])
+
+  function handleLogin(user) {
+    setUsuario(user)
+    setTela("dashboard")
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("stocker_token")
+    localStorage.removeItem("stocker_user")
+    setUsuario(null)
+    setProducts([])
+    setVendas([])
+    setTela("dashboard")
+  }
 
   function navegar(destino, extra) {
-    if (destino === 'produto-form') {
-      setProdutoEditandoId(extra !== undefined ? extra : null)
-    }
+    if (destino === "produto-form") setProdutoEditandoId(extra !== undefined ? extra : null)
     setTela(destino)
   }
 
-  // CORRIGIDO: após salvar produto, recarrega lista do backend para garantir sincronia
   async function salvarProduto() {
     await loadProducts()
-    navegar('produtos')
+    navegar("produtos")
   }
 
   async function excluirProduto(id) {
@@ -97,26 +105,21 @@ function App() {
     }
   }
 
-  function salvarVenda(venda) {
-    setVendas((prev) => [...prev, venda])
-  }
+  function salvarVenda(venda) { setVendas((prev) => [...prev, venda]) }
 
   function editarVenda(dadosAtualizados) {
-    setVendas((prev) =>
-      prev.map((v) => {
-        if (v.id !== dadosAtualizados._id) return v
-        return {
-          ...v,
-          total: dadosAtualizados.totalFinal,
-          status: dadosAtualizados.status,
-          paymentType: dadosAtualizados.paymentType,
-          adjustmentValue: dadosAtualizados.adjustmentValue,
-          adjustmentType: dadosAtualizados.adjustmentType,
-          dailyInterest: dadosAtualizados.dailyInterest,
-          dueDate: dadosAtualizados.dueDate,
-        }
-      })
-    )
+    setVendas((prev) => prev.map((v) =>
+      v.id !== dadosAtualizados._id ? v : {
+        ...v,
+        total: dadosAtualizados.totalFinal,
+        status: dadosAtualizados.status,
+        paymentType: dadosAtualizados.paymentType,
+        adjustmentValue: dadosAtualizados.adjustmentValue,
+        adjustmentType: dadosAtualizados.adjustmentType,
+        dailyInterest: dadosAtualizados.dailyInterest,
+        dueDate: dadosAtualizados.dueDate,
+      }
+    ))
   }
 
   async function excluirVenda(id) {
@@ -133,44 +136,37 @@ function App() {
     : null
 
   const menuItems = [
-    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-    { id: 'produtos', label: 'Produtos', icon: Package },
-    { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
+    { id: "dashboard", label: "Início",   icon: LayoutDashboard },
+    { id: "produtos",  label: "Produtos", icon: Package },
+    { id: "vendas",    label: "Vendas",   icon: ShoppingCart },
   ]
 
   function abaAtiva() {
-    if (tela === 'dashboard') return 'dashboard'
-    if (tela === 'produtos' || tela === 'produto-form') return 'produtos'
-    if (tela === 'vendas' || tela === 'venda-form') return 'vendas'
-    return 'dashboard'
+    if (tela === "dashboard") return "dashboard"
+    if (tela === "produtos" || tela === "produto-form") return "produtos"
+    if (tela === "vendas"   || tela === "venda-form")  return "vendas"
+    return "dashboard"
   }
 
   function renderTela() {
     switch (tela) {
-      case 'dashboard':
-        return <Dashboard onNavigate={navegar} produtos={products} vendas={vendas} />
-      case 'produtos':
-        return <ProdutoLista onNavigate={navegar} produtos={products} onExcluir={excluirProduto} />
-      case 'produto-form':
-        return <ProdutoForm onNavigate={navegar} onSalvar={salvarProduto} produtoEditando={produtoEditando} />
-      case 'vendas':
-        return <VendaLista onNavigate={navegar} vendas={vendas} onExcluir={excluirVenda} onEditar={editarVenda} />
-      case 'venda-form':
-        return <VendaForm onNavigate={navegar} produtos={products} onSalvar={salvarVenda} />
-      case 'estoque':
-        return <StockMovementForm onNavigate={navegar} produtos={products} />
-      default:
-        return <Dashboard onNavigate={navegar} produtos={products} vendas={vendas} />
+      case "dashboard":   return <Dashboard onNavigate={navegar} produtos={products} vendas={vendas} />
+      case "produtos":    return <ProdutoLista onNavigate={navegar} produtos={products} onExcluir={excluirProduto} />
+      case "produto-form":return <ProdutoForm onNavigate={navegar} onSalvar={salvarProduto} produtoEditando={produtoEditando} />
+      case "vendas":      return <VendaLista onNavigate={navegar} vendas={vendas} onExcluir={excluirVenda} onEditar={editarVenda} />
+      case "venda-form":  return <VendaForm onNavigate={navegar} produtos={products} onSalvar={salvarVenda} />
+      case "estoque":     return <StockMovementForm onNavigate={navegar} produtos={products} />
+      default:            return <Dashboard onNavigate={navegar} produtos={products} vendas={vendas} />
     }
   }
 
-  if (tela === 'login') {
-    return <Login onNavigate={navegar} />
-  }
-  if (tela === 'cadastro') {
-    return <Cadastro onNavigate={navegar} />
+  // ── Rotas públicas ──
+  if (!usuario) {
+    if (tela === "cadastro") return <Cadastro onNavigate={setTela} />
+    return <Login onNavigate={setTela} onLogin={handleLogin} />
   }
 
+  // ── App autenticado ──
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sidebar desktop */}
@@ -186,15 +182,10 @@ function App() {
           {menuItems.map((item) => {
             const ativa = abaAtiva() === item.id
             return (
-              <button
-                key={item.id}
-                onClick={() => navegar(item.id)}
+              <button key={item.id} onClick={() => navegar(item.id)}
                 className={`w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors cursor-pointer ${
-                  ativa
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
+                  ativa ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}>
                 <item.icon className="w-5 h-5" />
                 {item.label}
               </button>
@@ -202,11 +193,13 @@ function App() {
           })}
         </nav>
 
-        <div className="p-3">
-          <button
-            onClick={() => navegar('login')}
-            className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
-          >
+        <div className="p-3 border-t border-slate-800">
+          <div className="px-4 py-2 mb-1">
+            <p className="text-xs text-slate-500 truncate">Logado como</p>
+            <p className="text-sm text-slate-300 font-medium truncate">{usuario.name}</p>
+          </div>
+          <button onClick={handleLogout}
+            className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer">
             <LogOut className="w-5 h-5" />
             Sair
           </button>
@@ -221,11 +214,9 @@ function App() {
           </div>
           <span className="font-bold text-slate-900">Stocker</span>
         </div>
-        <button
-          onClick={() => navegar('login')}
+        <button onClick={handleLogout}
           className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-          aria-label="Sair"
-        >
+          aria-label="Sair">
           <LogOut className="w-5 h-5" />
         </button>
       </header>
@@ -239,13 +230,10 @@ function App() {
         {menuItems.map((item) => {
           const ativa = abaAtiva() === item.id
           return (
-            <button
-              key={item.id}
-              onClick={() => navegar(item.id)}
+            <button key={item.id} onClick={() => navegar(item.id)}
               className={`flex flex-col items-center gap-1 px-4 py-2 cursor-pointer transition-colors ${
-                ativa ? 'text-blue-600' : 'text-slate-400'
-              }`}
-            >
+                ativa ? "text-blue-600" : "text-slate-400"
+              }`}>
               <item.icon className="w-5 h-5" />
               <span className="text-xs font-medium">{item.label}</span>
             </button>
