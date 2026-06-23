@@ -2,7 +2,7 @@
 require("dotenv").config()
 const mongoose = require("mongoose")
 
-const OWNER_ID = "COLE_AQUI_O_SEU_USER_ID" // pegar no banco após criar a conta
+const OWNER_ID = "6a39d7cc1436271b3baca344" // pegar no banco após criar a conta
 
 async function migrate() {
   await mongoose.connect(process.env.MONGO_URI)
