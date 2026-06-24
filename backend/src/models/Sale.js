@@ -15,6 +15,10 @@ const saleSchema = new mongoose.Schema(
     dueDate: Date,
     status: { type: String, enum: ["PAGO", "PENDENTE", "ATRASO", "CANCELADO"], default: "PAGO" },
     saleDate: { type: Date, default: Date.now },
+    // NOVO: controla se o produto foi fisicamente retirado/entregue
+    // Vista → true imediato | Prazo → false até confirmar retirada
+    delivered: { type: Boolean, default: false },
+    deliveredAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

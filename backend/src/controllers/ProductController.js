@@ -55,3 +55,22 @@ exports.deleteProduct = async (req, res) => {
     res.status(500).json({ error: error.message })
   }
 }
+
+// GET /products/next-code — retorna o próximo código sequencial do usuário
+exports.getNextCode = async (req, res) => {
+  try {
+    // Busca todos os códigos no formato #XXXX do usuário
+    const products = await Product.find({ owner: req.userId, active: true }, "code")
+    const numeros = products
+      .map((p) => p.code)
+      .filter((c) => /^#\d+$/.test(c))
+      .map((c) => parseInt(c.replace("#", ""), 10))
+
+    const proximo = numeros.length > 0 ? Math.max(...numeros) + 1 : 1
+    const codigo  = `#${String(proximo).padStart(4, "0")}`
+
+    res.json({ code: codigo })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}

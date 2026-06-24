@@ -10,6 +10,7 @@ import ProdutoForm from "./screens/ProdutoForm"
 import VendaForm from "./screens/VendaForm"
 import VendaLista from "./screens/VendaLista"
 import StockMovementForm from "./screens/StockMovementForm"
+import Onboarding from "./screens/Onboarding"
 
 function App() {
   // Inicializa usuário a partir do localStorage (persiste o login entre reloads)
@@ -20,6 +21,11 @@ function App() {
   const [products, setProducts] = useState([])
   const [vendas, setVendas] = useState([])
   const [produtoEditandoId, setProdutoEditandoId] = useState(null)
+
+  // Onboarding: mostra se nunca foi concluído E é a primeira sessão do usuário
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('stocker_onboarding_done')
+  })
 
   const loadProducts = useCallback(async () => {
     try {
@@ -32,6 +38,7 @@ function App() {
         custo: p.costPrice,
         categoria: p.groupname,
         sabor: p.flavor,
+        minstock: p.minstock ?? 0,
       })))
     } catch (error) {
       console.error("Erro ao carregar produtos:", error)
@@ -84,6 +91,8 @@ function App() {
     setProducts([])
     setVendas([])
     setTela("dashboard")
+    // Reseta onboarding para nova conta que possa logar no mesmo navegador
+    setShowOnboarding(!localStorage.getItem("stocker_onboarding_done"))
   }
 
   function navegar(destino, extra) {
@@ -224,6 +233,14 @@ function App() {
       <main className="lg:ml-56 p-4 pb-24 lg:p-6 lg:pb-6">
         {renderTela()}
       </main>
+
+      {/* Onboarding — aparece sobre tudo na primeira vez */}
+      {showOnboarding && (
+        <Onboarding
+          onNavigate={navegar}
+          onConcluir={() => setShowOnboarding(false)}
+        />
+      )}
 
       {/* Bottom nav mobile */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex items-center justify-around h-16">

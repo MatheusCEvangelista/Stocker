@@ -1,3 +1,4 @@
+const mongoose      = require("mongoose")
 const Sale          = require("../models/Sale")
 const Product       = require("../models/Products")
 const StockMovement = require("../models/StockMovement")
@@ -22,9 +23,19 @@ exports.createSale = async (req, res) => {
       totalFinal = subtotal + (adjustmentValue || 0)
     }
 
-    const movements    = await StockMovement.find({ productId, owner: req.userId })
+    // CORRIGIDO: cast explícito para ObjectId garante que a comparação funciona
+    // independente de req.userId chegar como string ou ObjectId do middleware
+    const ownerOid = new mongoose.Types.ObjectId(String(req.userId))
+    const prodOid  = new mongoose.Types.ObjectId(String(productId))
+
+    const movements    = await StockMovement.find({ productId: prodOid, owner: ownerOid })
     const currentStock = movements.reduce((acc, m) => acc + m.quantity, 0)
-    if (currentStock < quantity) return res.status(400).json({ message: "Estoque insuficiente" })
+
+    if (currentStock < quantity) {
+      return res.status(400).json({
+        message: `Estoque insuficiente. Disponível: ${currentStock}, solicitado: ${quantity}`
+      })
+    }
 
     const sale = await Sale.create({
       owner: req.userId,
