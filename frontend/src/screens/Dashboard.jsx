@@ -106,7 +106,9 @@ export default function Dashboard({ onNavigate, produtos, vendas }) {
         const response = await api.get('/stock')
         const totais = {}
         for (const mov of response.data) {
-          const id = String(mov.productId?._id ?? mov.productId)
+          const id = mov.productId?._id
+            ? String(mov.productId._id)
+            : String(mov.productId)
           totais[id] = (totais[id] || 0) + mov.quantity
         }
         setEstoqueMap(totais)

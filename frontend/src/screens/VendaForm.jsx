@@ -29,7 +29,10 @@ export default function VendaForm({ onNavigate, produtos }) {
         const response = await api.get("/stock")
         const totais = {}
         for (const mov of response.data) {
-          const id = String(mov.productId)
+          // productId pode vir como objeto populado { _id, groupname... } ou como string
+          const id = mov.productId?._id
+            ? String(mov.productId._id)
+            : String(mov.productId)
           totais[id] = (totais[id] || 0) + mov.quantity
         }
         setEstoques(totais)

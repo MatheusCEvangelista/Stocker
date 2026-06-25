@@ -21,7 +21,9 @@ export default function ProdutoLista({ onNavigate, produtos, onExcluir }) {
         const stockRes = await api.get('/stock')
         const fisico = {}
         for (const mov of stockRes.data) {
-          const id = String(mov.productId?._id ?? mov.productId)
+          const id = mov.productId?._id
+            ? String(mov.productId._id)
+            : String(mov.productId)
           fisico[id] = (fisico[id] || 0) + mov.quantity
         }
         setEstoqueMap(fisico)
@@ -31,7 +33,9 @@ export default function ProdutoLista({ onNavigate, produtos, onExcluir }) {
         const reservado = {}
         for (const venda of salesRes.data) {
           if (venda.status === 'PENDENTE' || venda.status === 'ATRASO') {
-            const id = String(venda.productId?._id ?? venda.productId)
+            const id = venda.productId?._id
+              ? String(venda.productId._id)
+              : String(venda.productId)
             reservado[id] = (reservado[id] || 0) + venda.quantity
           }
         }
