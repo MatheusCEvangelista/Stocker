@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import api from "./services/api"
-import { LayoutDashboard, Package, ShoppingCart, LogOut } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingCart, LogOut, FileText } from 'lucide-react'
 
 import Login from "./screens/Login"
 import Cadastro from "./screens/Cadastro"
@@ -11,6 +11,7 @@ import VendaForm from "./screens/VendaForm"
 import VendaLista from "./screens/VendaLista"
 import StockMovementForm from "./screens/StockMovementForm"
 import Onboarding from "./screens/Onboarding"
+import Relatorios from "./screens/Relatorios"
 
 function App() {
   // Inicializa usuário a partir do localStorage (persiste o login entre reloads)
@@ -148,12 +149,14 @@ function App() {
     { id: "dashboard", label: "Início",   icon: LayoutDashboard },
     { id: "produtos",  label: "Produtos", icon: Package },
     { id: "vendas",    label: "Vendas",   icon: ShoppingCart },
+    { id: "relatorios", label: "Relatórios", icon: FileText },
   ]
 
   function abaAtiva() {
     if (tela === "dashboard") return "dashboard"
     if (tela === "produtos" || tela === "produto-form") return "produtos"
     if (tela === "vendas"   || tela === "venda-form")  return "vendas"
+    if (tela === "relatorios") return "relatorios"
     return "dashboard"
   }
 
@@ -165,6 +168,7 @@ function App() {
       case "vendas":      return <VendaLista onNavigate={navegar} vendas={vendas} onExcluir={excluirVenda} onEditar={editarVenda} />
       case "venda-form":  return <VendaForm onNavigate={navegar} produtos={products} onSalvar={salvarVenda} />
       case "estoque":     return <StockMovementForm onNavigate={navegar} produtos={products} />
+      case "relatorios":  return <Relatorios usuario={usuario} />
       default:            return <Dashboard onNavigate={navegar} produtos={products} vendas={vendas} />
     }
   }
