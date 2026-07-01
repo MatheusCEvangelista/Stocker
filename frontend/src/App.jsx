@@ -13,6 +13,42 @@ import StockMovementForm from "./screens/StockMovementForm"
 import Onboarding from "./screens/Onboarding"
 import Relatorios from "./screens/Relatorios"
 
+
+// ─── PWA install prompt ───────────────────────────────────────────────────────
+function usePWAInstall() {
+  const [promptEvent, setPromptEvent] = useState(null)
+  const [instalado, setInstalado]     = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches
+  )
+
+  useEffect(() => {
+    function handlePrompt(e) {
+      e.preventDefault()
+      setPromptEvent(e)
+    }
+    function handleInstalled() {
+      setInstalado(true)
+      setPromptEvent(null)
+    }
+    window.addEventListener('beforeinstallprompt', handlePrompt)
+    window.addEventListener('appinstalled', handleInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handlePrompt)
+      window.removeEventListener('appinstalled', handleInstalled)
+    }
+  }, [])
+
+  async function instalar() {
+    if (!promptEvent) return
+    promptEvent.prompt()
+    const { outcome } = await promptEvent.userChoice
+    if (outcome === 'accepted') setInstalado(true)
+    setPromptEvent(null)
+  }
+
+  return { promptEvent, instalado, instalar }
+}
+
 function App() {
   // Inicializa usuário a partir do localStorage (persiste o login entre reloads)
   const [usuario, setUsuario] = useState(() => {
@@ -24,6 +60,8 @@ function App() {
   const [produtoEditandoId, setProdutoEditandoId] = useState(null)
 
   // Onboarding: mostra se nunca foi concluído E é a primeira sessão do usuário
+  const { promptEvent, instalar } = usePWAInstall()
+
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem('stocker_onboarding_done')
   })
@@ -237,6 +275,23 @@ function App() {
       <main className="lg:ml-56 p-4 pb-24 lg:p-6 lg:pb-6">
         {renderTela()}
       </main>
+
+      {/* Banner de instalação PWA — Android/Chrome */}
+      {promptEvent && (
+        <div className="fixed bottom-20 left-4 right-4 lg:left-auto lg:right-6 lg:bottom-6 lg:w-80 z-40 bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+            <Package className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">Instalar o Stocker</p>
+            <p className="text-xs text-slate-400 mt-0.5">Adicione à tela inicial como um app</p>
+          </div>
+          <button onClick={instalar}
+            className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0">
+            Instalar
+          </button>
+        </div>
+      )}
 
       {/* Onboarding — aparece sobre tudo na primeira vez */}
       {showOnboarding && (
